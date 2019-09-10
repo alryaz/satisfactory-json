@@ -32,18 +32,24 @@ if (targetValue === undefined) {
   quitWithError('No target file specified.');
 }
 
+if (program.time) {
+  console.time('readFile');
+}
 fs.readFile(sourceValue!, 'binary', (error, data) => {
   if (error) {
     quitWithError(error);
   }
   const binaryData = Buffer.from(data, 'binary');
+
   if (program.time) {
+    console.timeEnd('readFile');
     console.time('sav2json');
   }
   const transformed = sav2json(binaryData);
 
   if (program.time) {
     console.timeEnd('sav2json');
+    console.time('writeFile');
   }
   const output = JSON.stringify(transformed);
 
@@ -51,6 +57,7 @@ fs.readFile(sourceValue!, 'binary', (error, data) => {
     if (error2) {
       quitWithError(error2);
     }
+    console.timeEnd('writeFile');
     console.log('Converted ' + sourceValue + ' to ' + targetValue);
   });
 });
