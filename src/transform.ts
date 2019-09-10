@@ -36,10 +36,19 @@ function transform(
 ) {
   transformHeader(ar, saveGame);
 
+  // Compressed save files from saveHeaderType 6 on forward
+  if (saveGame.saveHeaderType >= 6) {
+    // inflate or deflate zlib data here
+    ar.zlibFlate();
+    ar.readHex(4);
+  }
+
+
   const entryCount = {
     entryCount: saveGame.actors.length + saveGame.components.length
   };
   ar.transformInt(entryCount.entryCount);
+  console.log(entryCount.entryCount);
 
   for (let i = 0; i < entryCount.entryCount; i++) {
     transformActorOrComponent(ar, saveGame, i);
@@ -92,6 +101,10 @@ function transformHeader(
   if (saveGame.saveHeaderType > 4) {
     ar.transformByte(saveGame.sessionVisibility);
   }
+  console.log(saveGame);
+
+
+
 }
 
 function transformActorOrComponent(
@@ -120,6 +133,7 @@ function transformActorOrComponent(
           properties: []
         }
       };
+      console.log(actor);
       transformActor(ar, actor);
       saveGame.actors.push(actor);
     } else if (type.type === 0) {

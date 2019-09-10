@@ -33,6 +33,8 @@
     "json2sav": "./lib/json2sav.js"
   },
   "dependencies": {
-    "commander": "^2.20.0"
+    "@types/pako": "^1.0.1",
+    "commander": "^2.20.0",
+    "pako": "^1.0.10"
   }
 }

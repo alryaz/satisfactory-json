@@ -1,3 +1,5 @@
+import { inflate, deflate } from 'pako';
+
 
 type Key = string | number;
 
@@ -32,6 +34,7 @@ export interface Archive {
     transformAssertNullByte(count?: boolean): void;
     transformAssertNullInt(count?: boolean): void;
 
+    zlibFlate(): void;
 }
 
 /**
@@ -50,6 +53,8 @@ abstract class BaseArchive implements Archive {
     public abstract transformBufferEnd(): void;
     public abstract transformAssertNullByte(count?: boolean): void;
     public abstract transformAssertNullInt(count?: boolean): void;
+    public abstract zlibFlate(): void;
+
     public abstract _Hex(
         obj: any, key: string | number, count: number, shouldCount?: boolean): void;
 
@@ -72,6 +77,8 @@ abstract class BaseArchive implements Archive {
     public transformHex(obj: string, count: number, shouldCount?: boolean): void {
         throw new Error('transformHex should be removed by preprocessor.');
     }
+
+
 }
 
 export class LoadingArchive extends BaseArchive {
@@ -251,6 +258,62 @@ export class LoadingArchive extends BaseArchive {
         this.bytesRead = 0;
     }
     //#endregion
+
+    public zlibFlate() {
+        const chunks = 150;
+        let uncompressed = new Uint8Array(131072 * chunks);
+
+        let i = 0;
+        while (this.cursor < this.buffer.length) {
+
+            const tag = this.readHex(4);
+            console.log('------', tag, i);
+
+            console.log('uo ' + this.readInt());
+            const us = this.readInt();
+            console.log('us', us);
+            //        console.log('us ' + this.readInt());
+            console.log('co ' + this.readInt());
+            const cs = this.readInt();
+            console.log('cs', cs);
+            //      console.log('cs ' + this.readInt());
+
+
+            console.log('uo ' + this.readInt());
+            console.log('us ' + this.readInt());
+            console.log('co ' + this.readInt());
+            console.log('cs ' + this.readInt());
+
+            console.log('uo ' + this.readInt());
+            console.log('us ' + this.readInt());
+            console.log('co ' + this.readInt());
+
+            // inflate zlib data here
+
+
+
+            try {
+                const compressed = this.buffer.slice(this.cursor, this.cursor + cs);
+                //console.log(compressed);
+                //console.log('comp' + compressed.length);
+                const result = inflate(compressed);
+                //console.log(result.length, us);
+                uncompressed.set(result, i * us);
+                //console.log(uncompressed);
+                this.cursor += cs;
+            } catch (err) {
+                // TODO wrap with message telling the user that error source was compression
+                throw err;
+            }
+            i++;
+        }
+        console.log(`Read ${i} chunks`);
+        throw new Error('');
+        this.buffer = Buffer.from(uncompressed);
+        this.cursor = 0;
+        this.bytesRead = 0;
+
+    }
 }
 
 /**
@@ -400,4 +463,8 @@ export class SavingArchive extends BaseArchive {
         }
     }
     //#endregion
+
+    public zlibFlate() {
+        // deflate zlib data here
+    }
 }
