@@ -35,29 +35,40 @@ if (targetValue === undefined) {
 if (program.time) {
   console.time('readFile');
 }
+
+const stream = fs.createReadStream(sourceValue!, 'binary');
+/*
+
 fs.readFile(sourceValue!, 'binary', (error, data) => {
   if (error) {
     quitWithError(error);
   }
-  const binaryData = Buffer.from(data, 'binary');
+  const binaryData = Buffer.from(data, 'binary');*/
 
-  if (program.time) {
-    console.timeEnd('readFile');
-    console.time('sav2json');
-  }
-  const transformed = sav2json(binaryData);
+if (program.time) {
+  console.timeEnd('readFile');
+  console.time('sav2json');
+}
+const transformed = sav2json(stream).then(
+  () => {
 
-  if (program.time) {
-    console.timeEnd('sav2json');
-    console.time('writeFile');
-  }
-  const output = JSON.stringify(transformed);
-
-  fs.writeFile(targetValue!, output, 'utf8', (error2) => {
-    if (error2) {
-      quitWithError(error2);
+    if (program.time) {
+      console.timeEnd('sav2json');
+      console.time('writeFile');
     }
-    console.timeEnd('writeFile');
-    console.log('Converted ' + sourceValue + ' to ' + targetValue);
-  });
+    const output = JSON.stringify(transformed);
+
+    fs.writeFile(targetValue!, output, 'utf8', (error2) => {
+      if (error2) {
+        quitWithError(error2);
+      }
+      console.timeEnd('writeFile');
+      console.log('Converted ' + sourceValue + ' to ' + targetValue);
+    });
+  }
+).catch(error => {
+  console.trace(error);
+  process.exit();
 });
+
+// });

@@ -1,4 +1,5 @@
-
+import { ReadStream } from 'fs';
+import { assert } from 'console';
 type Key = string | number;
 
 interface OutputBufferBuffer {
@@ -10,24 +11,24 @@ export interface Archive {
     isLoading(): boolean;
 
     //#region Functions that will be removed by the preprocessor
-    transformInt(obj: number, count?: boolean): void;
-    transformString(obj: string, count?: boolean): void;
-    transformFloat(obj: number): void;
-    transformLong(obj: string): void;
-    transformByte(obj: number, count?: boolean): void;
-    transformHex(obj: string, count: number, shouldCount?: boolean): void;
+    transformInt(obj: number, count?: boolean): Promise<void>;
+    transformString(obj: string, count?: boolean): Promise<void>;
+    transformFloat(obj: number): Promise<void>;
+    transformLong(obj: string): Promise<void>;
+    transformByte(obj: number, count?: boolean): Promise<void>;
+    transformHex(obj: string, count: number, shouldCount?: boolean): Promise<void>;
     //#endregion
 
     //#region Actual functions that the functions above will be replaced with
-    _Int(obj: any, key: string | number, count?: boolean): void;
-    _String(obj: any, key: string | number, count?: boolean): void;
-    _Float(obj: any, key: string | number): void;
-    _Long(obj: any, key: string | number): void;
-    _Byte(obj: any, key: Key, count?: boolean): void;
-    _Hex(obj: any, key: Key, count: number, shouldCount?: boolean): void;
+    _Int(obj: any, key: string | number, count?: boolean): Promise<void>;
+    _String(obj: any, key: string | number, count?: boolean): Promise<void>;
+    _Float(obj: any, key: string | number): Promise<void>;
+    _Long(obj: any, key: string | number): Promise<void>;
+    _Byte(obj: any, key: Key, count?: boolean): Promise<void>;
+    _Hex(obj: any, key: Key, count: number, shouldCount?: boolean): Promise<void>;
     //#endregion
 
-    transformBufferStart(resetBytesRead: boolean): number;
+    transformBufferStart(resetBytesRead: boolean): Promise<number>;
     transformBufferEnd(): void;
     transformAssertNullByte(count?: boolean): void;
     transformAssertNullInt(count?: boolean): void;
@@ -41,48 +42,48 @@ abstract class BaseArchive implements Archive {
 
     public abstract isSaving(): boolean;
     public abstract isLoading(): boolean;
-    public abstract _Int(obj: any, key: string | number, count?: boolean): void;
-    public abstract _String(obj: any, key: string | number, count?: boolean): void;
-    public abstract _Float(obj: any, key: string | number): void;
-    public abstract _Long(obj: any, key: string | number): void;
-    public abstract _Byte(obj: any, key: string | number, count?: boolean): void;
-    public abstract transformBufferStart(resetBytesRead: boolean): number;
+    public abstract _Int(obj: any, key: string | number, count?: boolean): Promise<void>;
+    public abstract _String(obj: any, key: string | number, count?: boolean): Promise<void>;
+    public abstract _Float(obj: any, key: string | number): Promise<void>;
+    public abstract _Long(obj: any, key: string | number): Promise<void>;
+    public abstract _Byte(obj: any, key: string | number, count?: boolean): Promise<void>;
+    public abstract transformBufferStart(resetBytesRead: boolean): Promise<number>;
     public abstract transformBufferEnd(): void;
     public abstract transformAssertNullByte(count?: boolean): void;
     public abstract transformAssertNullInt(count?: boolean): void;
     public abstract _Hex(
-        obj: any, key: string | number, count: number, shouldCount?: boolean): void;
+        obj: any, key: string | number, count: number, shouldCount?: boolean): Promise<void>;
 
-    public transformInt(obj: number, count?: boolean): void {
+    public async transformInt(obj: number, count?: boolean): Promise<void> {
         throw new Error('transformInt should be removed by preprocessor.');
     }
 
-    public transformString(obj: string, count?: boolean): void {
+    public async transformString(obj: string, count?: boolean): Promise<void> {
         throw new Error('transformString should be removed by preprocessor.');
     }
-    public transformFloat(obj: number): void {
+    public async transformFloat(obj: number): Promise<void> {
         throw new Error('transformFloat should be removed by preprocessor.');
     }
-    public transformLong(obj: string): void {
+    public async transformLong(obj: string): Promise<void> {
         throw new Error('transformLong should be removed by preprocessor.');
     }
-    public transformByte(obj: number, count?: boolean): void {
+    public async transformByte(obj: number, count?: boolean): Promise<void> {
         throw new Error('transformByte should be removed by preprocessor.');
     }
-    public transformHex(obj: string, count: number, shouldCount?: boolean): void {
+    public async transformHex(obj: string, count: number, shouldCount?: boolean): Promise<void> {
         throw new Error('transformHex should be removed by preprocessor.');
     }
 }
 
 export class LoadingArchive extends BaseArchive {
     public bytesRead: number;
-    private buffer: Buffer;
+    private stream: ReadStream;
     private cursor: number;
 
-
-    constructor(buffer: Buffer) {
+    constructor(stream: ReadStream) {
         super();
-        this.buffer = buffer;
+        this.stream = stream;
+        this.stream.on('data', this.onData.bind(this));
         this.cursor = 0;
         this.bytesRead = 0;
     }
@@ -95,28 +96,28 @@ export class LoadingArchive extends BaseArchive {
         return true;
     }
 
-    public _Int(obj: any, key: string | number, count: boolean = true): void {
-        obj[key] = this.readInt();
+    public async _Int(obj: any, key: string | number, count: boolean = true): Promise<void> {
+        obj[key] = await this.readInt();
     }
 
-    public _String(obj: any, key: string | number, count: boolean = true): void {
-        obj[key] = this.readLengthPrefixedString();
+    public async _String(obj: any, key: string | number, count: boolean = true): Promise<void> {
+        obj[key] = await this.readLengthPrefixedString();
     }
 
-    public _Float(obj: any, key: string | number): void {
-        obj[key] = this.readFloat();
+    public async _Float(obj: any, key: string | number): Promise<void> {
+        obj[key] = await this.readFloat();
     }
 
-    public _Long(obj: any, key: string | number): void {
-        obj[key] = this.readLong();
+    public async _Long(obj: any, key: string | number): Promise<void> {
+        obj[key] = await this.readLong();
     }
 
-    public _Byte(obj: any, key: Key, count: boolean = true): void {
-        obj[key] = this.readByte();
+    public async _Byte(obj: any, key: Key, count: boolean = true): Promise<void> {
+        obj[key] = await this.readByte();
     }
 
-    public transformBufferStart(resetBytesRead: boolean): number {
-        const length = this.readInt();
+    public async transformBufferStart(resetBytesRead: boolean): Promise<number> {
+        const length = await this.readInt();
         if (resetBytesRead) {
             // is currently only true for the Entity as we don't add
             // missing sections anywhere else
@@ -137,18 +138,90 @@ export class LoadingArchive extends BaseArchive {
         this.assertNullInt();
     }
 
-    public _Hex(obj: any, key: Key, count: number, shouldCount: boolean = true): void {
-        obj[key] = this.readHex(count);
+    public async _Hex(obj: any, key: Key, count: number, shouldCount: boolean = true):
+        Promise<void> {
+        obj[key] = await this.readHex(count);
     }
 
     //#region should be private
-    public readInt(): number {
-        const result = this.buffer.readInt32LE(this.cursor);
+    public onData(data: string) {
+        // TODO is it better to read directly from the stream instead of manually concatenating buffers?
+
+        if (this.buffered === undefined) {
+            console.log('undef');
+            console.log(this.callback);
+            console.log(this);
+            this.buffered = Buffer.from('');
+        }
+        process.stdout.write('.');// + this.buffered.length);
+        if (this.buffered.length > 0) {
+            this.buffered = Buffer.concat([this.buffered, Buffer.from(data, 'binary')]);
+        } else {
+            this.buffered = Buffer.from(data, 'binary');
+        }
+
+        //console.log('asdf', this.callback);
+        if (this.callback) {
+            // console.log(this.buffered.length, '<', this.needBytes);
+            if (this.buffered.length >= this.needBytes) {
+                // got enough data
+                const result = this.buffered.slice(0, this.needBytes);
+                this.buffered = this.buffered.slice(this.needBytes);
+                const cb = this.callback;
+                this.callback = undefined;
+                console.log(result);
+                cb(result);
+            }
+        }
+        // console.log('data', data);
+    }
+
+    private callback?: ((buffer: Buffer) => void) = undefined;
+    private callbackError?: Error = undefined;
+    private needBytes: number = 0;
+    private buffered: Buffer = Buffer.from('');
+
+    /**
+     * Reads n bytes from the stream
+     * synchronously waits until the required amount of bytes is read
+     */
+    public read(bytes: number): Promise<Buffer> {
+        return new Promise<Buffer>((resolve, reject) => {
+            /*console.log(this);
+            console.trace('cb', this.callback);*/
+            if (this.buffered.length < bytes) {
+                if (this.callback !== undefined) {
+                    console.trace('callback already set', this.callback, this.callbackError);
+                    console.log(this.callbackError!.stack);
+                    process.exit(1);
+                }
+                assert(this.callback === undefined);
+                this.needBytes = bytes;
+                this.callback = resolve.bind(this);
+                this.callbackError = new Error(); // to get the stack trace back to here
+                //console.log(this.callback);
+            } else {
+                const result = this.buffered.slice(0, bytes);
+                this.buffered = this.buffered.slice(bytes);
+                console.log(result);
+                resolve(result);
+            }
+            /*            const result = this.stream.read(bytes);
+                        if (result === null) {
+                            reject();
+                        }
+                        resolve(result);*/
+        });
+
+    }
+
+    public async readInt(): Promise<number> {
+        const result = (await this.read(4)).readInt32LE(0);
         this.cursor += 4;
         this.bytesRead += 4;
         return result;
     }
-    public readLong(): string {
+    public readLong(): Promise<string> {
         /*let result = this.buffer.readInt32LE(this.cursor);
               // TODO figure out how to actually deal with longs in JS!
               this.cursor += 8;
@@ -156,21 +229,20 @@ export class LoadingArchive extends BaseArchive {
               return result;*/
         return this.readHex(8);
     }
-    public readByte(): number {
-        const result = this.buffer.readUInt8(this.cursor);
+    public async readByte(): Promise<number> {
+        const result = (await this.read(1)).readUInt8(0);
         this.cursor += 1;
         this.bytesRead += 1;
         return result;
     }
-    public readFloat(): number {
-        const result = this.buffer.readFloatLE(this.cursor);
+    public async readFloat(): Promise<number> {
+        const result = (await this.read(4)).readFloatLE(0);
         this.cursor += 4;
         this.bytesRead += 4;
         return result;
     }
-    public readHex(count: number): string {
-        const result = this.buffer
-            .slice(this.cursor, this.cursor + count)
+    public async readHex(count: number): Promise<string> {
+        const result = (await this.read(count))
             .toString('hex');
         this.cursor += count;
         this.bytesRead += count;
@@ -184,11 +256,12 @@ export class LoadingArchive extends BaseArchive {
         }
         return String.fromCharCode.apply(String, cp);
     }
-    public readLengthPrefixedString(): string {
-        let length = this.readInt();
+    public async readLengthPrefixedString(): Promise<string> {
+        let length = await this.readInt();
         if (length === 0) {
             return '';
         }
+        console.log('strlen', length);
         let utf16 = false;
         if (length < 0) {
             // Thanks to @Goz3rr we know that this is now an utf16 based string
@@ -196,20 +269,23 @@ export class LoadingArchive extends BaseArchive {
             length = -2 * length;
             utf16 = true;
         }
-        if (this.cursor + length > this.buffer.length) {
+        // TODO detect EOF
+        /*if (this.cursor + length > this.stream.length) {
             console.log(this.readHex(32));
             // tslint:disable-next-line: no-console
             console.trace('buffer < ' + length);
             throw new Error('cannot read string of length: ' + length);
-        }
+        }*/
         let resultStr;
         if (utf16) {
-            const result = this.buffer.slice(this.cursor, this.cursor + length - 2);
+            const result = await this.read(length - 2);
+            // .slice(this.cursor, this.cursor + length - 2);
             resultStr = this.decodeUTF16LE(result.toString('binary'));
             this.cursor += length - 2;
             this.bytesRead += length - 2;
         } else {
-            const result = this.buffer.slice(this.cursor, this.cursor + length - 1);
+            const result = await this.read(length - 1);
+            // .slice(this.cursor, this.cursor + length - 1);
             resultStr = result.toString('utf8');
             this.cursor += length - 1;
             this.bytesRead += length - 1;
@@ -218,13 +294,13 @@ export class LoadingArchive extends BaseArchive {
             throw new Error('Cursor overflowed to ' + this.cursor + ' by ' + length);
         }
         if (utf16) {
-            this.assertNullByteString(length, resultStr); // two null bytes for utf16
+            await this.assertNullByteString(length, resultStr); // two null bytes for utf16
         }
-        this.assertNullByteString(length, resultStr);
+        await this.assertNullByteString(length, resultStr);
         return resultStr;
     }
-    public assertNullByteString(length: number, result: string) {
-        const zero = this.buffer.readInt8(this.cursor);
+    public async assertNullByteString(length: number, result: string) {
+        const zero = (await this.read(1)).readInt8(0);
         if (zero !== 0) {
             throw new Error('string (length: ' + length +
                 ') does not end with zero, but with ' + zero + ': ' + result);
@@ -232,16 +308,16 @@ export class LoadingArchive extends BaseArchive {
         this.cursor += 1;
         this.bytesRead += 1;
     }
-    public assertNullByte() {
-        const zero = this.buffer.readInt8(this.cursor);
+    public async assertNullByte() {
+        const zero = (await this.read(1)).readInt8(0);
         if (zero !== 0) {
             throw new Error('expected 0 byte, but got ' + zero);
         }
         this.cursor += 1;
         this.bytesRead += 1;
     }
-    public assertNullInt() {
-        const zero = this.readInt();
+    public async assertNullInt() {
+        const zero = await this.readInt();
         if (zero !== 0) {
             console.log(this.readHex(32));
             throw new Error('expected 0 int, but got ' + zero);
@@ -288,27 +364,27 @@ export class SavingArchive extends BaseArchive {
         return this.bytes;
     }
 
-    public _Int(obj: any, key: string | number, count: boolean = true): void {
+    public async _Int(obj: any, key: string | number, count: boolean = true): Promise<void> {
         this.writeInt(obj[key], count);
     }
 
-    public _String(obj: any, key: string | number, count: boolean = true): void {
+    public async _String(obj: any, key: string | number, count: boolean = true): Promise<void> {
         this.writeLengthPrefixedString(obj[key], count);
     }
 
-    public _Float(obj: any, key: string | number): void {
+    public async _Float(obj: any, key: string | number): Promise<void> {
         this.writeFloat(obj[key]);
     }
 
-    public _Long(obj: any, key: string | number): void {
+    public async _Long(obj: any, key: string | number): Promise<void> {
         this.writeLong(obj[key]);
     }
 
-    public _Byte(obj: any, key: Key, count: boolean = true): void {
+    public async _Byte(obj: any, key: Key, count: boolean = true): Promise<void> {
         this.writeByte(obj[key], count);
     }
 
-    public transformBufferStart(resetBytesRead: boolean): number {
+    public async transformBufferStart(resetBytesRead: boolean): Promise<number> {
         this.addBuffer();
         return 0;
     }
@@ -325,7 +401,8 @@ export class SavingArchive extends BaseArchive {
         this.writeInt(0, count);
     }
 
-    public _Hex(obj: any, key: Key, count: number, shouldCount: boolean = true): void {
+    public async _Hex(obj: any, key: Key, count: number, shouldCount: boolean = true):
+        Promise<void> {
         this.writeHex(obj[key], shouldCount);
     }
 

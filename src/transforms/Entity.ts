@@ -3,13 +3,13 @@ import { Entity, Property } from '../types';
 import transformProperty from './Property';
 import transformExtra from './Extra';
 
-export default function transformEntity(
+export default async function transformEntity(
   ar: Archive,
   entity: Entity,
   withNames: boolean,
   className: string
 ) {
-  const length = ar.transformBufferStart(true);
+  const length = await ar.transformBufferStart(true);
 
   if (withNames) {
     ar.transformString(entity.levelName!);
@@ -44,7 +44,7 @@ export default function transformEntity(
   } else {
     const missing = length - (ar as LoadingArchive).bytesRead;
     if (missing > 0) {
-      entity.missing = (ar as LoadingArchive).readHex(missing);
+      entity.missing = await (ar as LoadingArchive).readHex(missing);
       console.warn(
         'missing data found in entity of type ' +
         className +

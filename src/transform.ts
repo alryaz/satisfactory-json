@@ -3,8 +3,9 @@ import { Archive, LoadingArchive, SavingArchive } from './Archive';
 import transformActor from './transforms/Actor';
 import transformEntity from './transforms/Entity';
 import transformComponent from './transforms/Component';
+import { ReadStream } from 'fs';
 
-export function sav2json(buffer: Buffer): SaveGame {
+export async function sav2json(stream: ReadStream): Promise<SaveGame> {
   const saveGame: SaveGame = {
     saveHeaderType: 0,
     saveVersion: 0,
@@ -20,39 +21,39 @@ export function sav2json(buffer: Buffer): SaveGame {
     collected: [],
     missing: ''
   };
-  transform(new LoadingArchive(buffer), saveGame);
+  await transform(new LoadingArchive(stream), saveGame);
   return saveGame;
 }
 
-export function json2sav(saveGame: SaveGame): string {
+export async function json2sav(saveGame: SaveGame): Promise<string> {
   const buffer = new SavingArchive(Buffer.from([]));
-  transform(buffer, saveGame);
+  await transform(buffer, saveGame);
   return buffer.getOutput();
 }
 
-function transform(
+async function transform(
   ar: Archive,
   saveGame: SaveGame
 ) {
-  transformHeader(ar, saveGame);
+  await transformHeader(ar, saveGame);
 
   const entryCount = {
     entryCount: saveGame.actors.length + saveGame.components.length
   };
-  ar.transformInt(entryCount.entryCount);
+  await ar.transformInt(entryCount.entryCount);
 
   for (let i = 0; i < entryCount.entryCount; i++) {
-    transformActorOrComponent(ar, saveGame, i);
+    await transformActorOrComponent(ar, saveGame, i);
   }
 
-  ar.transformInt(entryCount.entryCount);
+  await ar.transformInt(entryCount.entryCount);
   for (let i = 0; i < entryCount.entryCount; i++) {
     if (i < saveGame.actors.length) {
       const actor = saveGame.actors[i];
-      transformEntity(ar, actor.entity, true, actor.className);
+      await transformEntity(ar, actor.entity, true, actor.className);
     } else {
       const component = saveGame.components[i - saveGame.actors.length];
-      transformEntity(
+      await transformEntity(
         ar,
         component.entity,
         false,
@@ -64,33 +65,35 @@ function transform(
   const collectedCount = {
     count: saveGame.collected.length
   };
-  ar.transformInt(collectedCount.count);
+  await ar.transformInt(collectedCount.count);
   for (let i = 0; i < collectedCount.count; i++) {
     if (ar.isLoading()) {
       saveGame.collected.push({ levelName: '', pathName: '' });
     }
-    ar.transformString(saveGame.collected[i].levelName);
-    ar.transformString(saveGame.collected[i].pathName);
+    await ar.transformString(saveGame.collected[i].levelName);
+    await ar.transformString(saveGame.collected[i].pathName);
   }
 
   // TODO missing
 }
 
-function transformHeader(
+async function transformHeader(
   ar: Archive,
   saveGame: SaveGame
 ) {
 
-  ar.transformInt(saveGame.saveHeaderType);
-  ar.transformInt(saveGame.saveVersion);
-  ar.transformInt(saveGame.buildVersion);
-  ar.transformString(saveGame.mapName);
-  ar.transformString(saveGame.mapOptions);
-  ar.transformString(saveGame.sessionName);
-  ar.transformInt(saveGame.playDurationSeconds);
-  ar.transformLong(saveGame.saveDateTime);
+  console.log('header');
+  await ar.transformInt(saveGame.saveHeaderType);
+  console.log('header2');
+  await ar.transformInt(saveGame.saveVersion);
+  await ar.transformInt(saveGame.buildVersion);
+  await ar.transformString(saveGame.mapName);
+  await ar.transformString(saveGame.mapOptions);
+  await ar.transformString(saveGame.sessionName);
+  await ar.transformInt(saveGame.playDurationSeconds);
+  await ar.transformLong(saveGame.saveDateTime);
   if (saveGame.saveHeaderType > 4) {
-    ar.transformByte(saveGame.sessionVisibility);
+    await ar.transformByte(saveGame.sessionVisibility);
   }
 }
 
